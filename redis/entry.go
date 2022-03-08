@@ -8,10 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-redis/cache/v8"
-	"github.com/rookie-ninja/rk-common/common"
 	"github.com/rookie-ninja/rk-db/redis"
-	"github.com/rookie-ninja/rk-entry/entry"
-	"github.com/rookie-ninja/rk-logger"
+	"github.com/rookie-ninja/rk-entry/v2/entry"
 	"github.com/rs/xid"
 	"go.uber.org/zap"
 	"time"
@@ -20,12 +18,14 @@ import (
 // This must be declared in order to register registration function into rk context
 // otherwise, rk-boot won't able to bootstrap echo entry automatically from boot config file
 func init() {
-	rkentry.RegisterEntryRegFunc(RegisterCacheEntryFromConfig)
+	rkentry.RegisterEntryRegFunc(RegisterCacheEntryYAML)
 }
+
+const CacheRedisEntry = "CacheRedisEntry"
 
 // GetCache get cache.Cache with entryName
 func GetCache(entryName string) *cache.Cache {
-	if v := rkentry.GlobalAppCtx.GetEntry(entryName); v != nil {
+	if v := rkentry.GlobalAppCtx.GetEntry(CacheRedisEntry, entryName); v != nil {
 		if raw, ok := v.(*CacheEntry); ok {
 			return raw.GetCache()
 		}
@@ -35,7 +35,7 @@ func GetCache(entryName string) *cache.Cache {
 }
 
 func GetCacheEntry(entryName string) *CacheEntry {
-	if v := rkentry.GlobalAppCtx.GetEntry(entryName); v != nil {
+	if v := rkentry.GlobalAppCtx.GetEntry(CacheRedisEntry, entryName); v != nil {
 		if raw, ok := v.(*CacheEntry); ok {
 			return raw
 		}
@@ -44,8 +44,8 @@ func GetCacheEntry(entryName string) *CacheEntry {
 	return nil
 }
 
-// BootConfig bootstrap entry from config
-type BootConfig struct {
+// BootCache bootstrap entry from config
+type BootCache struct {
 	Cache []struct {
 		Name        string `yaml:"name" json:"name"`
 		Description string `yaml:"description" json:"description"`
@@ -55,23 +55,19 @@ type BootConfig struct {
 			Size    int  `yaml:"size" json:"size"`
 			TtlMin  int  `yaml:"ttlMin" json:"ttlMin"`
 		} `yaml:"local" json:"local"`
-		Redis  rkredis.BootConfigRedis `yaml:"redis" json:"redis"`
-		Logger struct {
-			ZapLogger string `yaml:"zapLogger" json:"zapLogger"`
-		} `yaml:"logger" json:"logger"`
-		Cert struct {
-			Ref string `yaml:"ref" json:"ref"`
-		} `yaml:"cert" json:"cert"`
+		Redis       rkredis.BootRedisE `yaml:"redis" json:"redis"`
+		LoggerEntry string             `yaml:"loggerEntry" json:"loggerEntry"`
+		CertEntry   string             `yaml:"certEntry" json:"certEntry"`
 	} `yaml:"cache" json:"cache"`
 }
 
-// RegisterCacheEntryFromConfig create entry from config file
-func RegisterCacheEntryFromConfig(configFilePath string) map[string]rkentry.Entry {
+// RegisterCacheEntryYAML create entry from config file
+func RegisterCacheEntryYAML(raw []byte) map[string]rkentry.Entry {
 	res := make(map[string]rkentry.Entry)
 
 	// 1: unmarshal user provided config into boot config struct
-	config := &BootConfig{}
-	rkcommon.UnmarshalBootConfig(configFilePath, config)
+	config := &BootCache{}
+	rkentry.UnmarshalBootYAML(raw, config)
 
 	for i := range config.Cache {
 		element := config.Cache[i]
@@ -91,8 +87,8 @@ func RegisterCacheEntryFromConfig(configFilePath string) map[string]rkentry.Entr
 				localCache = cache.NewTinyLFU(element.Local.Size, time.Duration(element.Local.TtlMin)*time.Minute)
 			}
 
-			certEntry := rkentry.GlobalAppCtx.GetCertEntry(element.Cert.Ref)
-			zapLoggerEntry := rkentry.GlobalAppCtx.GetZapLoggerEntry(element.Logger.ZapLogger)
+			certEntry := rkentry.GlobalAppCtx.GetCertEntry(element.CertEntry)
+			loggerEntry := rkentry.GlobalAppCtx.GetLoggerEntry(element.LoggerEntry)
 
 			var redisCache *rkredis.RedisEntry
 			if element.Redis.Enabled {
@@ -102,10 +98,9 @@ func RegisterCacheEntryFromConfig(configFilePath string) map[string]rkentry.Entr
 					rkredis.WithDescription(element.Description),
 					rkredis.WithUniversalOption(redisOpt),
 					rkredis.WithCertEntry(certEntry),
-					rkredis.WithZapLoggerEntry(zapLoggerEntry))
+					rkredis.WithLoggerEntry(loggerEntry))
 
-				// remove redis entry
-				rkentry.GlobalAppCtx.RemoveEntry(redisCache.GetName())
+				rkentry.GlobalAppCtx.RemoveEntry(redisCache)
 			}
 
 			entry := RegisterCacheEntry(
@@ -113,7 +108,7 @@ func RegisterCacheEntryFromConfig(configFilePath string) map[string]rkentry.Entr
 				WithDescription(element.Description),
 				WithRedisCache(redisCache),
 				WithLocalCache(localCache),
-				WithZapLoggerEntry(zapLoggerEntry))
+				WithLoggerEntry(loggerEntry))
 
 			res[entry.GetName()] = entry
 		}
@@ -125,24 +120,24 @@ func RegisterCacheEntryFromConfig(configFilePath string) map[string]rkentry.Entr
 // RegisterCacheEntry register with Option
 func RegisterCacheEntry(opts ...Option) *CacheEntry {
 	entry := &CacheEntry{
-		EntryName:        "Cache",
-		EntryType:        "Cache",
-		EntryDescription: "Cache entry with rk-db/redis",
-		logger:           rklogger.NoopLogger,
+		entryName:        "CacheRedis",
+		entryType:        CacheRedisEntry,
+		entryDescription: "CacheRedisEntry with rk-db/redis",
+		logger:           rkentry.LoggerEntryStdout.Logger,
 	}
 
 	for i := range opts {
 		opts[i](entry)
 	}
 
-	if len(entry.EntryName) < 1 {
-		entry.EntryName = "cache-" + xid.New().String()
+	if len(entry.entryName) < 1 {
+		entry.entryName = "cache-" + xid.New().String()
 	}
 
-	if len(entry.EntryDescription) < 1 {
-		entry.EntryDescription = fmt.Sprintf("%s entry with name of %s with localCache:%v, redisCache:%v",
-			entry.EntryType,
-			entry.EntryName,
+	if len(entry.entryDescription) < 1 {
+		entry.entryDescription = fmt.Sprintf("%s entry with name of %s with localCache:%v, redisCache:%v",
+			entry.entryType,
+			entry.entryName,
 			entry.IsLocalCacheEnabled(),
 			entry.IsRedisCacheEnabled())
 	}
@@ -154,19 +149,19 @@ func RegisterCacheEntry(opts ...Option) *CacheEntry {
 
 // CacheEntry implementation of rkentry.Entry
 type CacheEntry struct {
-	EntryName        string
-	EntryType        string
-	EntryDescription string
+	entryName        string
+	entryType        string
+	entryDescription string
 	localCache       cache.LocalCache
 	redisCache       *rkredis.RedisEntry
 	cacheClient      *cache.Cache
-	logger           *zap.Logger `yaml:"-" json:"-"`
+	logger           *zap.Logger
 }
 
 // Bootstrap entry
 func (entry *CacheEntry) Bootstrap(ctx context.Context) {
-	entry.logger.Info("Bootstrap cache entry",
-		zap.String("entryName", entry.EntryName),
+	entry.logger.Info("Bootstrap CacheRedisEntry",
+		zap.String("entryName", entry.entryName),
 		zap.Bool("localCache", entry.IsLocalCacheEnabled()),
 		zap.Bool("redisCache", entry.IsRedisCacheEnabled()))
 
@@ -188,8 +183,8 @@ func (entry *CacheEntry) Bootstrap(ctx context.Context) {
 
 // Interrupt entry
 func (entry *CacheEntry) Interrupt(ctx context.Context) {
-	entry.logger.Info("Interrupt redis entry",
-		zap.String("entryName", entry.EntryName),
+	entry.logger.Info("Interrupt CacheRedisEntry",
+		zap.String("entryName", entry.entryName),
 		zap.Bool("localCache", entry.IsLocalCacheEnabled()),
 		zap.Bool("redisCache", entry.IsRedisCacheEnabled()))
 
@@ -200,17 +195,17 @@ func (entry *CacheEntry) Interrupt(ctx context.Context) {
 
 // GetName returns name of entry
 func (entry *CacheEntry) GetName() string {
-	return entry.EntryName
+	return entry.entryName
 }
 
 // GetType returns type of entry
 func (entry *CacheEntry) GetType() string {
-	return entry.EntryType
+	return entry.entryType
 }
 
 // GetDescription returns description of entry
 func (entry *CacheEntry) GetDescription() string {
-	return entry.EntryDescription
+	return entry.entryDescription
 }
 
 // String to string
@@ -240,7 +235,7 @@ func (entry *CacheEntry) GetCache() *cache.Cache {
 
 // *************** Service ***************
 
-func (entry *CacheEntry) GetFromCacheEncoded(req *CacheReq) *CacheResp {
+func (entry *CacheEntry) GetFromCache(req *CacheReq) *CacheResp {
 	if entry.cacheClient == nil {
 		return &CacheResp{
 			Success: false,
@@ -308,7 +303,7 @@ func (entry *CacheEntry) GetFromCacheEncoded(req *CacheReq) *CacheResp {
 	}
 }
 
-func (entry *CacheEntry) AddToCacheEncoded(req *CacheReq) *CacheResp {
+func (entry *CacheEntry) AddToCache(req *CacheReq) *CacheResp {
 	if entry.cacheClient == nil {
 		return &CacheResp{
 			Success: false,
@@ -378,14 +373,14 @@ type Option func(e *CacheEntry)
 // WithName provide name.
 func WithName(name string) Option {
 	return func(entry *CacheEntry) {
-		entry.EntryName = name
+		entry.entryName = name
 	}
 }
 
 // WithDescription provide name.
 func WithDescription(description string) Option {
 	return func(entry *CacheEntry) {
-		entry.EntryDescription = description
+		entry.entryDescription = description
 	}
 }
 
@@ -407,8 +402,8 @@ func WithLocalCache(in cache.LocalCache) Option {
 	}
 }
 
-// WithZapLoggerEntry provide rkentry.ZapLoggerEntry entry name
-func WithZapLoggerEntry(entry *rkentry.ZapLoggerEntry) Option {
+// WithLoggerEntry provide rkentry.LoggerEntry entry name
+func WithLoggerEntry(entry *rkentry.LoggerEntry) Option {
 	return func(m *CacheEntry) {
 		if entry != nil {
 			m.logger = entry.Logger
