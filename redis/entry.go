@@ -46,19 +46,22 @@ func GetCacheEntry(entryName string) *CacheEntry {
 
 // BootCache bootstrap entry from config
 type BootCache struct {
-	Cache []struct {
-		Name        string `yaml:"name" json:"name"`
-		Description string `yaml:"description" json:"description"`
-		Enabled     bool   `yaml:"enabled" json:"enabled"`
-		Local       struct {
-			Enabled bool `yaml:"enabled" json:"enabled"`
-			Size    int  `yaml:"size" json:"size"`
-			TtlMin  int  `yaml:"ttlMin" json:"ttlMin"`
-		} `yaml:"local" json:"local"`
-		Redis       rkredis.BootRedisE `yaml:"redis" json:"redis"`
-		LoggerEntry string             `yaml:"loggerEntry" json:"loggerEntry"`
-		CertEntry   string             `yaml:"certEntry" json:"certEntry"`
-	} `yaml:"cache" json:"cache"`
+	Cache []*BootCacheE `yaml:"cache" json:"cache"`
+}
+
+type BootCacheE struct {
+	Name        string `yaml:"name" json:"name"`
+	Domain      string `yaml:"domain" json:"domain"`
+	Description string `yaml:"description" json:"description"`
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+	Local       struct {
+		Enabled bool `yaml:"enabled" json:"enabled"`
+		Size    int  `yaml:"size" json:"size"`
+		TtlMin  int  `yaml:"ttlMin" json:"ttlMin"`
+	} `yaml:"local" json:"local"`
+	Redis       rkredis.BootRedisE `yaml:"redis" json:"redis"`
+	LoggerEntry string             `yaml:"loggerEntry" json:"loggerEntry"`
+	CertEntry   string             `yaml:"certEntry" json:"certEntry"`
 }
 
 // RegisterCacheEntryYAML create entry from config file
@@ -69,49 +72,72 @@ func RegisterCacheEntryYAML(raw []byte) map[string]rkentry.Entry {
 	config := &BootCache{}
 	rkentry.UnmarshalBootYAML(raw, config)
 
-	for i := range config.Cache {
-		element := config.Cache[i]
-
-		if element.Enabled {
-			var localCache cache.LocalCache
-			if element.Local.Enabled {
-				// assign default value
-				if element.Local.Size < 2 {
-					element.Local.Size = 10000
-				}
-
-				if element.Local.TtlMin < 1 {
-					element.Local.TtlMin = 60
-				}
-
-				localCache = cache.NewTinyLFU(element.Local.Size, time.Duration(element.Local.TtlMin)*time.Minute)
-			}
-
-			certEntry := rkentry.GlobalAppCtx.GetCertEntry(element.CertEntry)
-			loggerEntry := rkentry.GlobalAppCtx.GetLoggerEntry(element.LoggerEntry)
-
-			var redisCache *rkredis.RedisEntry
-			if element.Redis.Enabled {
-				redisOpt := rkredis.ToRedisUniversalOptions(&element.Redis)
-				redisCache = rkredis.RegisterRedisEntry(
-					rkredis.WithName(element.Name),
-					rkredis.WithDescription(element.Description),
-					rkredis.WithUniversalOption(redisOpt),
-					rkredis.WithCertEntry(certEntry),
-					rkredis.WithLoggerEntry(loggerEntry))
-
-				rkentry.GlobalAppCtx.RemoveEntry(redisCache)
-			}
-
-			entry := RegisterCacheEntry(
-				WithName(element.Name),
-				WithDescription(element.Description),
-				WithRedisCache(redisCache),
-				WithLocalCache(localCache),
-				WithLoggerEntry(loggerEntry))
-
-			res[entry.GetName()] = entry
+	// filter out based domain
+	configMap := make(map[string]*BootCacheE)
+	for _, e := range config.Cache {
+		if !e.Enabled || len(e.Name) < 1 {
+			continue
 		}
+
+		if !rkentry.IsValidDomain(e.Domain) {
+			continue
+		}
+
+		// * or matching domain
+		// 1: add it to map if missing
+		if _, ok := configMap[e.Name]; !ok {
+			configMap[e.Name] = e
+			continue
+		}
+
+		// 2: already has an entry, then compare domain,
+		//    only one case would occur, previous one is already the correct one, continue
+		if e.Domain == "" || e.Domain == "*" {
+			continue
+		}
+
+		configMap[e.Name] = e
+	}
+
+	for _, element := range configMap {
+		var localCache cache.LocalCache
+		if element.Local.Enabled {
+			// assign default value
+			if element.Local.Size < 2 {
+				element.Local.Size = 10000
+			}
+
+			if element.Local.TtlMin < 1 {
+				element.Local.TtlMin = 60
+			}
+
+			localCache = cache.NewTinyLFU(element.Local.Size, time.Duration(element.Local.TtlMin)*time.Minute)
+		}
+
+		certEntry := rkentry.GlobalAppCtx.GetCertEntry(element.CertEntry)
+		loggerEntry := rkentry.GlobalAppCtx.GetLoggerEntry(element.LoggerEntry)
+
+		var redisCache *rkredis.RedisEntry
+		if element.Redis.Enabled {
+			redisOpt := rkredis.ToRedisUniversalOptions(&element.Redis)
+			redisCache = rkredis.RegisterRedisEntry(
+				rkredis.WithName(element.Name),
+				rkredis.WithDescription(element.Description),
+				rkredis.WithUniversalOption(redisOpt),
+				rkredis.WithCertEntry(certEntry),
+				rkredis.WithLoggerEntry(loggerEntry))
+
+			rkentry.GlobalAppCtx.RemoveEntry(redisCache)
+		}
+
+		entry := RegisterCacheEntry(
+			WithName(element.Name),
+			WithDescription(element.Description),
+			WithRedisCache(redisCache),
+			WithLocalCache(localCache),
+			WithLoggerEntry(loggerEntry))
+
+		res[entry.GetName()] = entry
 	}
 
 	return res

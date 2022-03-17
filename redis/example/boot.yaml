@@ -6,6 +6,7 @@ gin:
 cache:
   - name: redis-cache
     enabled: true
+    domain: "*"
     local:
       enabled: false
     redis:
