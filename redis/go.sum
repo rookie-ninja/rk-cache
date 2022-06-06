@@ -478,9 +478,8 @@ github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqn
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
-github.com/rookie-ninja/rk-db/redis v1.2.0 h1:Kt1wcD1NQ4x83P+Bko6siaWh5R1sVDCExJrTRd23rlg=
-github.com/rookie-ninja/rk-db/redis v1.2.0/go.mod h1:D20e6P1teJCgW6m+lIpSzZmORJ30pObfoCG8Pe498EU=
-github.com/rookie-ninja/rk-entry/v2 v2.2.1/go.mod h1:kCfoXKbC0Dw1rXcTlppCd7JCMJfNF6GY1g0h/FXPSrE=
+github.com/rookie-ninja/rk-db/redis v1.2.2 h1:jBvW0aOsp+bNDtz3tG+NTR2m+W7UeW/CCG6CAV8vyyU=
+github.com/rookie-ninja/rk-db/redis v1.2.2/go.mod h1:AH8hXg7TaDftCQl+Kp7hDLCc2w2oQyITDZTxMox0bNo=
 github.com/rookie-ninja/rk-entry/v2 v2.2.2 h1:5iO8JzMLIjx9O64IN9aLPH8AEJvF69vgOTu3rLwH3vM=
 github.com/rookie-ninja/rk-entry/v2 v2.2.2/go.mod h1:kCfoXKbC0Dw1rXcTlppCd7JCMJfNF6GY1g0h/FXPSrE=
 github.com/rookie-ninja/rk-logger v1.2.11 h1:QqfVnTFKVpjFnETB4lAVEzLWm5zSy/ghJpPICz1qo/w=

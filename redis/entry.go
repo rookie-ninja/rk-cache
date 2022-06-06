@@ -149,7 +149,7 @@ func RegisterCacheEntry(opts ...Option) *CacheEntry {
 		entryName:        "CacheRedis",
 		entryType:        CacheRedisEntry,
 		entryDescription: "CacheRedisEntry with rk-db/redis",
-		logger:           rkentry.LoggerEntryStdout.Logger,
+		logger:           rkentry.GlobalAppCtx.GetLoggerEntryDefault().Logger,
 	}
 
 	for i := range opts {
@@ -433,6 +433,8 @@ func WithLoggerEntry(entry *rkentry.LoggerEntry) Option {
 	return func(m *CacheEntry) {
 		if entry != nil {
 			m.logger = entry.Logger
+		} else {
+			m.logger = rkentry.GlobalAppCtx.GetLoggerEntryDefault().Logger
 		}
 	}
 }
