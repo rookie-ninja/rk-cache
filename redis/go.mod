@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/go-redis/cache/v8 v8.4.3
-	github.com/rookie-ninja/rk-db/redis v1.2.4
-	github.com/rookie-ninja/rk-entry/v2 v2.2.4
+	github.com/rookie-ninja/rk-db/redis v1.2.5
+	github.com/rookie-ninja/rk-entry/v2 v2.2.5
 	github.com/rs/xid v1.3.0
 	go.uber.org/zap v1.21.0
 )
