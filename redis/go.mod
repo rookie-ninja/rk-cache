@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/go-redis/cache/v8 v8.4.3
-	github.com/rookie-ninja/rk-db/redis v1.2.6
-	github.com/rookie-ninja/rk-entry/v2 v2.2.6
+	github.com/rookie-ninja/rk-db/redis v1.2.7
+	github.com/rookie-ninja/rk-entry/v2 v2.2.8
 	github.com/rs/xid v1.3.0
 	go.uber.org/zap v1.21.0
 )
@@ -42,8 +42,8 @@ require (
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	go.opentelemetry.io/otel v1.8.0 // indirect
-	go.opentelemetry.io/otel/trace v1.8.0 // indirect
+	go.opentelemetry.io/otel v1.10.0 // indirect
+	go.opentelemetry.io/otel/trace v1.10.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/exp v0.0.0-20210916165020-5cb4fee858ee // indirect
