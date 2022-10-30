@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/go-redis/cache/v8 v8.4.3
-	github.com/rookie-ninja/rk-db/redis v1.2.7
-	github.com/rookie-ninja/rk-entry/v2 v2.2.8
+	github.com/rookie-ninja/rk-db/redis v1.2.8
+	github.com/rookie-ninja/rk-entry/v2 v2.2.9
 	github.com/rs/xid v1.3.0
 	go.uber.org/zap v1.21.0
 )
@@ -31,7 +31,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/rookie-ninja/rk-logger v1.2.11 // indirect
+	github.com/rookie-ninja/rk-logger v1.2.12 // indirect
 	github.com/rookie-ninja/rk-query v1.2.14 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
